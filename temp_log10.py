@@ -223,6 +223,7 @@ def Func1(temp1, temp2, programmStatus):
 
     win.title("PRIKAZ TEMPERATUR")
     win.geometry('480x320')
+    testgit
     
 #    var = StringVar()
 #    self.var.set(str(temp2.value))
