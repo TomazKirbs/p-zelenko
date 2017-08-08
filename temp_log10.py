@@ -20,7 +20,7 @@ skalirniFb = [] #Skalirni faktor b
 
 #temp1 = 0
 #temp2 = 1
-
+  
 # Global für Programmstatus / 
 #programmStatus = 1 
  
