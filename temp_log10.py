@@ -4,7 +4,7 @@
 #------------------------------------------------------------
 
 from Tkinter import *
-#import Tkinter as tk
+import Tkinter as tk
 import tkFont
 import RPi.GPIO as GPIO
 import os, sys, time, datetime, csv, errno
@@ -18,6 +18,8 @@ tempSensorAnzahl = 0 #INT für die Anzahl der gelesenen Sensoren
 tempSensorWert = [] #Liste mit den einzelnen Sensor-Werten
 skalirniFa = [] #Skalirni faktor a 
 skalirniFb = [] #Skalirni faktor b
+#IzpisDAN = {"nekaj"}
+
 
 #temp1 = 0
 #temp2 = 1
@@ -63,8 +65,8 @@ def ds1820auslesen():
             file.close()
             # Temperaturwerte auslesen und konvertieren
             stringvalue = filecontent.split("\n")[1].split(" ")[9]
-            sensorwert = (stringvalue[2:]) #/ 1000
- #           temperatur = '%6.2f' % sensorwert #Sensor- bzw. Temperaturwert auf 2 Dezimalstellen formatiert
+            sensorwert = (stringvalue[2:])#/ 1000)
+#            temperatur = '%6.2f' % sensorwert #Sensor- bzw. Temperaturwert auf 2 Dezimalstellen formatiert
             tempSensorWert.insert(x,sensorwert) #Wert in Liste aktualisieren
             x = x + 1
     except:
@@ -80,7 +82,7 @@ danasnjidan = datetime.datetime.today()
 
 dan = danasnjidan.strftime("%m/%d/%Y")
 
-NaslovIzpisneDatoteke = "/home/pi/Vaja" #Naslov datoteke za izpis
+NaslovIzpisneDatoteke = "/media/pi/USB DISK/" #Naslov datoteke za izpis
 
 
     #izpis.write("Datum:" + datetime.date() + "\n")
@@ -88,7 +90,7 @@ NaslovIzpisneDatoteke = "/home/pi/Vaja" #Naslov datoteke za izpis
 programmStat = 1 
 
 def Func2(temp1, temp2, programmStatus):
-    global tempSensorBezeichnung, tempSensorAnzahl, tempSensorWert, programmStat
+    global tempSensorBezeichnung, tempSensorAnzahl, tempSensorWert, programmStat#, IzpisDAN
     
     programmStatus.value = 1
     programmStat = 1
@@ -167,12 +169,12 @@ def Func2(temp1, temp2, programmStatus):
 #            x = x + 1
         time.sleep(.9)
 #        print ("\n")
-        temp1.value = float(tempSensorWert[0])#/1000
-        temp2.value = float(tempSensorWert[1])#/1000
+        temp1.value = float(tempSensorWert[0])/1000
+        temp2.value = float(tempSensorWert[1])/1000
 
 
 def Func1(temp1, temp2, programmStatus):
-    global tempSensorBezeichnung, tempSensorAnzahl, tempSensorWert
+    global tempSensorBezeichnung, tempSensorAnzahl, tempSensorWert#, IzpisDAN
     
     temp11 = 0
     temp22 = 0
@@ -184,55 +186,46 @@ def Func1(temp1, temp2, programmStatus):
     GPIO.setmode(GPIO.BOARD)
     GPIO.setup(40, GPIO.OUT)
     GPIO.output(40, GPIO.LOW)
-    
-    global tren_ura, IzpisDAN
-    
+      
 
 
-    class Prikaz:
-        def __init__(self, master):
+    class Prikaz(tk.Frame):
+        def __init__(self, master=None):
+            tk.Frame.__init__(self, master)
             self.master = master
             master.title("PRIKAZ TEMPERATUR")
             master.geometry('480x320')
-#            self.pack()
-#            self.Widgets()
+            self.pack()
+            self.Widgets()
             
-#        def Widgets(self):
+        def Widgets(self):
             self.myFont = tkFont.Font(family = 'Helvetica', size = 18, weight = 'bold')
             self.tempFont = tkFont.Font(family = 'Helvetica', size = 50, weight = 'bold')
             
-            tren_ura = datetime.datetime.now()
-            IzpisDAN = tren_ura.strftime("Datum: %d.%m.%Y Ura: %H:%M:%S")
-            self.time_now = StringVar()
-            self.time_now.set(IzpisDAN)
-            
-            self.timeLabel = Label(master, textvariable = self.time_now, font = self.myFont)
-            self.timeLabel.pack(side = TOP)
-            
-            self.exitButton  = Button(master, text = "Exit", font = self.myFont, command = self.exitProgram, height =1 , width = 5) 
-            self.exitButton.pack(side = TOP)
-            
-            self.var1 = IntVar()
-            self.var1.set(str(temp1.value))
-            
+            self.time_now = tk.StringVar()                                 
+            self.var1 = IntVar()            
             self.var2 = IntVar()
-            self.var2.set(str(temp2.value))
-#            print(temp2.value)
-    
-            self.temp1Label = Label(master, textvariable = self.var1, font = self.tempFont, height = 1, width = 6)
-            self.temp1Label.pack(side = LEFT)
-            
-            self.temp2Label = Label(master, textvariable = self.var2, font = self.tempFont, height = 1, width = 5)
-            self.temp2Label.pack(side = RIGHT)
             
             self.UpdateVar()
+            
+            self.timeLabel = tk.Label(self, font = self.myFont)
+            self.timeLabel.pack(side = TOP)
+            self.timeLabel["textvariable"] = self.time_now
+            
+            self.exitButton  = Button(self, text = "Exit", font = self.myFont, command = self.exitProgram, height =1 , width = 5) 
+            self.exitButton.pack(side = TOP)
+    
+            self.temp1Label = Label(self, textvariable = self.var1, font = self.tempFont, height = 1, width = 6)
+            self.temp1Label.pack(side = LEFT)
+            
+            self.temp2Label = Label(self, textvariable = self.var2, font = self.tempFont, height = 1, width = 5)
+            self.temp2Label.pack(side = RIGHT)
             
             
         def UpdateVar(self):
             
             tren_ura = datetime.datetime.now()
             IzpisDAN = tren_ura.strftime("Datum: %d.%m.%Y Ura: %H:%M:%S")
-            self.time_now = StringVar()
             self.time_now.set(IzpisDAN)
             
             self.var1.set(str(temp1.value)) #
@@ -296,8 +289,8 @@ def Func1(temp1, temp2, programmStatus):
 
 #    leftButton = Button(win, text = temp2.value, font = tempFont, command = left, height = 4, width =7 )
 #    leftButton.pack(side = LEFT)
-    root = Tk()
-    a = Prikaz(root)
+    root = tk.Tk()
+    a = Prikaz(master=root)
     root.mainloop()
 
     # Programmende durch Veränderung des programmStatus
@@ -309,6 +302,7 @@ if __name__=='__main__':
     x = Value('d', 0.0)
     y = Value('d', 0.0)
     z = Value('i', 0)
+#    time = Value( 'ctypes.c_char_p',"Datum: %d.%m.%Y Ura: %H:%M:%S")
     
     p1 = Process(target = Func1, args = (x, y, z))
     p1.start()
