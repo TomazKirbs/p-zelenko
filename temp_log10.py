@@ -18,6 +18,7 @@ tempSensorAnzahl = 0 #INT für die Anzahl der gelesenen Sensoren
 tempSensorWert = [] #Liste mit den einzelnen Sensor-Werten
 skalirniFa = [] #Skalirni faktor a 
 skalirniFb = [] #Skalirni faktor b
+errorStat = 0
 #IzpisDAN = {"nekaj"}
 
 
@@ -28,7 +29,7 @@ skalirniFb = [] #Skalirni faktor b
 #programmStatus = 1 
  
 def ds1820einlesen():
-    global tempSensorBezeichnung, tempSensorAnzahl, programmStat 
+    global tempSensorBezeichnung, tempSensorAnzahl, programmStat, errorStat
     #Verzeichnisinhalt auslesen mit allen vorhandenen Sensorbezeichnungen 28-xxxx
     try:
         for x in os.listdir("/sys/bus/w1/devices"):
@@ -39,6 +40,7 @@ def ds1820einlesen():
         # Auslesefehler
         print ("Vrednosti ni mogoce prebrati.")
         programmStat = 0
+        errorStat = 1
     if programmStat == 1:
 
         jj=0
@@ -65,14 +67,16 @@ def ds1820auslesen():
             file.close()
             # Temperaturwerte auslesen und konvertieren
             stringvalue = filecontent.split("\n")[1].split(" ")[9]
-            sensorwert = (stringvalue[2:])#/ 1000)
-#            temperatur = '%6.2f' % sensorwert #Sensor- bzw. Temperaturwert auf 2 Dezimalstellen formatiert
-            tempSensorWert.insert(x,sensorwert) #Wert in Liste aktualisieren
+            sensorwert = float(stringvalue[2:])/ 1000
+            temperatur = '%6.1f' % sensorwert #Sensor- bzw. Temperaturwert auf 1 Dezimalstellen formatiert
+            tempSensorWert.insert(x,temperatur) #Wert in Liste aktualisieren
+#            print (temperatur)
             x = x + 1
     except:
         # Fehler bei Auslesung der Sensoren
         print ("Vrednosti ni mogoce prebrati.")
         programmStat = 0
+        errorStat = 1
  
 
     #Programminitialisierung
@@ -85,11 +89,9 @@ dan = danasnjidan.strftime("%m/%d/%Y")
 NaslovIzpisneDatoteke = "/media/pi/USB DISK/" #Naslov datoteke za izpis
 
 
-    #izpis.write("Datum:" + datetime.date() + "\n")
-
 programmStat = 1 
 
-def Func2(temp1, temp2, programmStatus):
+def Func2(temp1, temp2, programmStatus, errorStatus):
     global tempSensorBezeichnung, tempSensorAnzahl, tempSensorWert, programmStat#, IzpisDAN
     
     programmStatus.value = 1
@@ -109,7 +111,7 @@ def Func2(temp1, temp2, programmStatus):
                 l=0
                 for row in csv_reader:
                     tempSensorAnzahlK, tempSensorBezeichnungK, skalirniFaK, skalirniFbK = row
-                    print(row)
+ #                   print(row)
                     tempSensorBezeichnung.append(l)
 #                    tempSensorAnzahl = tempSensorAnzahl + 1
                     skalirniFa.append(l)
@@ -118,7 +120,7 @@ def Func2(temp1, temp2, programmStatus):
                     tempSensorBezeichnung[l] = str(tempSensorBezeichnungK)
                     skalirniFa[l] = float(skalirniFaK)
                     skalirniFb[l] = float(skalirniFbK)
-                    print(tempSensorBezeichnung, tempSensorAnzahl, skalirniFa, skalirniFb)
+#                    print(tempSensorBezeichnung, tempSensorAnzahl, skalirniFa, skalirniFb)
                     l=l+1
             
             
@@ -130,10 +132,10 @@ def Func2(temp1, temp2, programmStatus):
     x = 0
     tren_ura = datetime.datetime.now() #prebere trenuten čas
     ura = tren_ura.strftime("%H:%M:%S") #formatira trenuten čas
-    IzpisDAN = tren_ura.strftime("Dan%d%m%Y_Ura%H%M%S") #formatira trenuten čas
+    IzpisDAN = tren_ura.strftime("Dan%d%m%Y_Ura%H%M%S") #formatira trenuten čas (čas kreirane datoteke)
     
     
-    IzpisnaDatoteka = NaslovIzpisneDatoteke + "Kotel1_" + str(IzpisDAN) + ".csv"
+    IzpisnaDatoteka = NaslovIzpisneDatoteke + "Kotel1_" + str(IzpisDAN) + ".csv" #formatira ime kreirane datoteke
         
         
     with open(IzpisnaDatoteka, "a") as izpis:
@@ -154,8 +156,6 @@ def Func2(temp1, temp2, programmStatus):
         x = 0
         ds1820auslesen()
     
-#        IzpisnaDatoteka = 
-   
         with open(IzpisnaDatoteka, "a") as izpis:
             izpis.write(ura + " ;")
             while x < tempSensorAnzahl:
@@ -163,18 +163,23 @@ def Func2(temp1, temp2, programmStatus):
                 x = x + 1
             izpis.write("\n")
             x = 0
-            print ("Sensorbezeichnung und Temperaturwert:")
-#        while x < tempSensorAnzahl:
-#            print (tempSensorBezeichnung[x] , " " , tempSensorWert[x] , " °C")
-#            x = x + 1
-        time.sleep(.9)
-#        print ("\n")
-        temp1.value = float(tempSensorWert[0])/1000
-        temp2.value = float(tempSensorWert[1])/1000
+#            print ("Sensorbezeichnung und Temperaturwert:")
+
+        time.sleep(.5) #zakasnitev med branjem vrednosti temperature
 
 
-def Func1(temp1, temp2, programmStatus):
-    global tempSensorBezeichnung, tempSensorAnzahl, tempSensorWert#, IzpisDAN
+        # posredovanje statusa napak za multiprocesno izmenjavo podatkov
+        temp1.value = float(tempSensorWert[0])
+        temp2.value = float(tempSensorWert[1])
+
+        if errorStat == 1:
+            errorStatus.value = 1
+        elif errorStat == 0:
+            errorStatus.value = 0
+
+
+def Func1(temp1, temp2, programmStatus, errorStatus):
+    global tempSensorBezeichnung, tempSensorAnzahl, tempSensorWert
     
     temp11 = 0
     temp22 = 0
@@ -188,7 +193,6 @@ def Func1(temp1, temp2, programmStatus):
     GPIO.output(40, GPIO.LOW)
       
 
-
     class Prikaz(tk.Frame):
         def __init__(self, master=None):
             tk.Frame.__init__(self, master)
@@ -200,26 +204,38 @@ def Func1(temp1, temp2, programmStatus):
             
         def Widgets(self):
             self.myFont = tkFont.Font(family = 'Helvetica', size = 18, weight = 'bold')
-            self.tempFont = tkFont.Font(family = 'Helvetica', size = 50, weight = 'bold')
+            self.tempFont = tkFont.Font(family = 'Helvetica', size = 40, weight = 'bold')
             
             self.time_now = tk.StringVar()                                 
             self.var1 = IntVar()            
             self.var2 = IntVar()
+            self.errors = tk.StringVar()
+#            self.errors.set("Zagon prikazovalnika")
             
             self.UpdateVar()
             
             self.timeLabel = tk.Label(self, font = self.myFont)
-            self.timeLabel.pack(side = TOP)
+            self.timeLabel.grid(row=0, columnspan=2)
             self.timeLabel["textvariable"] = self.time_now
             
-            self.exitButton  = Button(self, text = "Exit", font = self.myFont, command = self.exitProgram, height =1 , width = 5) 
-            self.exitButton.pack(side = TOP)
-    
-            self.temp1Label = Label(self, textvariable = self.var1, font = self.tempFont, height = 1, width = 6)
-            self.temp1Label.pack(side = LEFT)
+            self.exitButton  = Button(self, text = "Exit", font = self.myFont, command = self.exitProgram, height =1 , width = 5, bg = "red") 
+            self.exitButton.grid(row=1)
             
-            self.temp2Label = Label(self, textvariable = self.var2, font = self.tempFont, height = 1, width = 5)
-            self.temp2Label.pack(side = RIGHT)
+            self.kotel1Button  = Button(self, text = "Kotel 1", font = self.myFont, command = self.kotel1nast, height =1 , width = 5) 
+            self.kotel1Button.grid(row=2)
+            
+            self.kotel2Button  = Button(self, text = "Kotel 2", font = self.myFont, command = self.kotel2nast, height =1 , width = 5) 
+            self.kotel2Button.grid(row=2, column=1)
+    
+            self.temp1Label = Label(self, textvariable = self.var1, font = self.tempFont, height = 2, width = 5)
+            self.temp1Label.grid(row=3)
+            
+            self.temp2Label = Label(self, textvariable = self.var2, font = self.tempFont, height = 2, width = 5)
+            self.temp2Label.grid(row=3, column=1)
+            
+            self.errorLabel = tk.Label(self, font = self.myFont)
+            self.errorLabel.grid(row=4, columnspan=2)
+            self.errorLabel["textvariable"] = self.errors
             
             
         def UpdateVar(self):
@@ -228,11 +244,14 @@ def Func1(temp1, temp2, programmStatus):
             IzpisDAN = tren_ura.strftime("Datum: %d.%m.%Y Ura: %H:%M:%S")
             self.time_now.set(IzpisDAN)
             
-            self.var1.set(str(temp1.value)) #
-            print(temp1.value)
+            self.var1.set(str(temp1.value) + u"\u2103") #
             
-            self.var2.set(str(temp2.value))
-            print(temp2.value)
+            self.var2.set(str(temp2.value) + u"\u2103")
+            
+            if errorStatus.value == 0:
+                self.errors.set("Prikazovalnik deluje brez napak!")
+            elif errorStatus.value == 0:
+                self.errors.set("Vrednosti ni mogoce prebrati!")
             
             #    	if temp11 != temp1.value :
 #    	    rightButton["text"] = temp1.value
@@ -251,7 +270,14 @@ def Func1(temp1, temp2, programmStatus):
             print("Exit Button pressed")
     #        GPIO.cleanup()
             programmStatus.value = 0
-            self.master.quit()	
+            self.master.quit()
+            
+        def kotel1nast(self):
+            pass
+        
+        def kotel2nast(self):
+            pass
+    
 
     
 #    def right(): #osveževanje temperature
@@ -277,18 +303,6 @@ def Func1(temp1, temp2, programmStatus):
 #            leftButton["fg"] = "green"
 #    	win.after(1000,left)
     
-
-
-    
-#    
-
- 
-
-#    rightButton = Button(win, text = temp1.value, font = tempFont, command = right, height = 4, width =6 )
-#    rightButton.pack(side = RIGHT)
-
-#    leftButton = Button(win, text = temp2.value, font = tempFont, command = left, height = 4, width =7 )
-#    leftButton.pack(side = LEFT)
     root = tk.Tk()
     a = Prikaz(master=root)
     root.mainloop()
@@ -302,12 +316,13 @@ if __name__=='__main__':
     x = Value('d', 0.0)
     y = Value('d', 0.0)
     z = Value('i', 0)
+    z1 = Value('i', 0)
 #    time = Value( 'ctypes.c_char_p',"Datum: %d.%m.%Y Ura: %H:%M:%S")
     
-    p1 = Process(target = Func1, args = (x, y, z))
+    p1 = Process(target = Func1, args = (x, y, z, z1))
     p1.start()
 #    p1.join()
      
-    p2 = Process(target = Func2, args = (x, y, z))
+    p2 = Process(target = Func2, args = (x, y, z, z1))
     p2.start()
 #    p2.join()
