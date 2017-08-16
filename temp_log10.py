@@ -96,7 +96,9 @@ def Func2(temp1, temp2, programmStatus, errorStatus):
     
     programmStatus.value = 1
     programmStat = 1
-    
+    tempStart = float(  30.0)
+    tempStop = float(30.0)
+    tempPasterizacije = 35.0
     
     flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY
 
@@ -130,52 +132,218 @@ def Func2(temp1, temp2, programmStatus, errorStatus):
         ds1820einlesen() #Anzahl und Bezeichnungen der vorhandenen Temperatursensoren einlesen
     
     x = 0
-    tren_ura = datetime.datetime.now() #prebere trenuten čas
-    ura = tren_ura.strftime("%H:%M:%S") #formatira trenuten čas
-    IzpisDAN = tren_ura.strftime("Dan%d%m%Y_Ura%H%M%S") #formatira trenuten čas (čas kreirane datoteke)
+
+    ds1820auslesen()
+        
+#        tsw0 = tempSensorWert[0]
+#        tsw1 = tempSensorWert[1]
+        
+    while programmStatus.value != 0:
+        x = 0
+        programmStatus.value = 1
+#        tempSensorWert.lock()
+
+        tsw0 = float(tempSensorWert[0])
+        tsw1 = float(tempSensorWert[1])
+                   
+        if tsw0 >= tempStart:
+            programmStatus.value = 2
+            
+            tren_ura = datetime.datetime.now() #prebere trenuten čas
+            ura = tren_ura.strftime("%H:%M:%S") #formatira trenuten čas
+            IzpisDAN = tren_ura.strftime("Dan%d%m%Y_Ura%H%M%S") #formatira trenuten čas (čas kreirane datoteke)
     
-    
-    IzpisnaDatoteka = NaslovIzpisneDatoteke + "Kotel1_" + str(IzpisDAN) + ".csv" #formatira ime kreirane datoteke
+            IzpisnaDatoteka1 = NaslovIzpisneDatoteke + "Kotel1_" + str(IzpisDAN) + ".csv" #formatira ime kreirane datoteke
         
         
-    with open(IzpisnaDatoteka, "a") as izpis:
-        izpis.write("Datum:" + dan + "\n")
-        izpis.write(",")
-        while x < tempSensorAnzahl:
-            izpis.write("Senzor" ";")
-            x = x + 1
-        izpis.write("\n")
-        izpis.write("Cas,")
-        x = 0
-        while x < tempSensorAnzahl:
-            izpis.write(tempSensorBezeichnung[x] + " ;")
-            x = x + 1
-        izpis.write("\n")
+            with open(IzpisnaDatoteka1, "a") as izpis:
+                izpis.write("Datum:" + dan + "\n")
+                izpis.write(",")
+                while x < tempSensorAnzahl:
+                    izpis.write("Senzor" ";")
+                    x = x + 1
+                izpis.write("\n")
+                izpis.write("Cas,")
+                x = 0
+                while x < tempSensorAnzahl:
+                    izpis.write(tempSensorBezeichnung[x] + " ;")
+                    x = x + 1
+                izpis.write("\n")
+            
+        elif tsw1 >= tempStart:
+            programmStatus.value = 3
+            
+            tren_ura = datetime.datetime.now() #prebere trenuten čas
+            ura = tren_ura.strftime("%H:%M:%S") #formatira trenuten čas
+            IzpisDAN = tren_ura.strftime("Dan%d%m%Y_Ura%H%M%S") #formatira trenuten čas (čas kreirane datoteke)
     
-    while programmStatus.value == 1:
-        x = 0
-        ds1820auslesen()
-    
-        with open(IzpisnaDatoteka, "a") as izpis:
-            izpis.write(ura + " ;")
-            while x < tempSensorAnzahl:
-                izpis.write(tempSensorWert[x] + " ;")
-                x = x + 1
-            izpis.write("\n")
-            x = 0
-#            print ("Sensorbezeichnung und Temperaturwert:")
-
-        time.sleep(.5) #zakasnitev med branjem vrednosti temperature
-
-
-        # posredovanje statusa napak za multiprocesno izmenjavo podatkov
+            IzpisnaDatoteka2 = NaslovIzpisneDatoteke + "Kotel2_" + str(IzpisDAN) + ".csv" #formatira ime kreirane datoteke
+        
+        
+            with open(IzpisnaDatoteka2, "a") as izpis:
+                izpis.write("Datum:" + dan + "\n")
+                izpis.write(",")
+                while x < tempSensorAnzahl:
+                    izpis.write("Senzor" ";")
+                    x = x + 1
+                izpis.write("\n")
+                izpis.write("Cas,")
+                x = 0
+                while x < tempSensorAnzahl:
+                    izpis.write(tempSensorBezeichnung[x] + " ;")
+                    x = x + 1
+                izpis.write("\n")
+            
+        else:
+            programmStatus.value = 1
+#        tempSensorWert.relles()
         temp1.value = float(tempSensorWert[0])
         temp2.value = float(tempSensorWert[1])
+        ds1820auslesen()
+        time.sleep(.5) #zakasnitev med branjem vrednosti temperature
+        
+        while programmStatus.value == 2:
+            
+            with open(IzpisnaDatoteka1, "a") as izpis:
+               izpis.write(ura + " ;")
+               while x < tempSensorAnzahl:
+                   izpis.write(tempSensorWert[x] + " ;")
+                   x = x + 1
+               izpis.write("\n")
+               x = 0           
 
-        if errorStat == 1:
-            errorStatus.value = 1
-        elif errorStat == 0:
-            errorStatus.value = 0
+            # posredovanje statusa napak za multiprocesno izmenjavo podatkov
+            temp1.value = float(tempSensorWert[0])
+            temp2.value = float(tempSensorWert[1])
+
+            if errorStat == 1:  #Prepis napake za prikatz na GUI
+                errorStatus.value = 1
+            elif errorStat == 0:
+                errorStatus.value = 0
+            
+            time.sleep(.5) #zakasnitev med branjem vrednosti temperature
+            
+            tsw0 = float(tempSensorWert[0])
+            tsw1 = float(tempSensorWert[1])
+            if tsw1 >= tempStart:
+                programmStatus.value = 4
+            
+                tren_ura = datetime.datetime.now() #prebere trenuten čas
+                ura = tren_ura.strftime("%H:%M:%S") #formatira trenuten čas
+                IzpisDAN = tren_ura.strftime("Dan%d%m%Y_Ura%H%M%S") #formatira trenuten čas (čas kreirane datoteke)
+    
+                IzpisnaDatoteka2 = NaslovIzpisneDatoteke + "Kotel2_" + str(IzpisDAN) + ".csv" #formatira ime kreirane datoteke
+        
+        
+                with open(IzpisnaDatoteka2, "a") as izpis:
+                    izpis.write("Datum:" + dan + "\n")
+                    izpis.write(",")
+                    while x < tempSensorAnzahl:
+                        izpis.write("Senzor" ";")
+                        x = x + 1
+                    izpis.write("\n")
+                    izpis.write("Cas,")
+                    x = 0
+                    while x < tempSensorAnzahl:
+                        izpis.write(tempSensorBezeichnung[x] + " ;")
+                        x = x + 1
+                    izpis.write("\n")
+            elif tsw0 <= tempStop:
+                programmStatus.value = 1
+                    
+            ds1820auslesen()
+            
+        while programmStatus.value == 3:
+            
+            with open(IzpisnaDatoteka2, "a") as izpis:
+               izpis.write(ura + " ;")
+               while x < tempSensorAnzahl:
+                   izpis.write(tempSensorWert[x] + " ;")
+                   x = x + 1
+               izpis.write("\n")
+               x = 0           
+
+            # posredovanje statusa napak za multiprocesno izmenjavo podatkov
+            temp1.value = float(tempSensorWert[0])
+            temp2.value = float(tempSensorWert[1])
+
+            if errorStat == 1:  #Prepis napake za prikatz na GUI
+                errorStatus.value = 1
+            elif errorStat == 0:
+                errorStatus.value = 0
+            
+            time.sleep(.5) #zakasnitev med branjem vrednosti temperature
+            
+            tsw0 = float(tempSensorWert[0])
+            tsw1 = float(tempSensorWert[1])
+            if tsw0 >= tempStart:
+                programmStatus.value = 4
+            
+                tren_ura = datetime.datetime.now() #prebere trenuten čas
+                ura = tren_ura.strftime("%H:%M:%S") #formatira trenuten čas
+                IzpisDAN = tren_ura.strftime("Dan%d%m%Y_Ura%H%M%S") #formatira trenuten čas (čas kreirane datoteke)
+    
+                IzpisnaDatoteka1 = NaslovIzpisneDatoteke + "Kotel1_" + str(IzpisDAN) + ".csv" #formatira ime kreirane datoteke
+        
+        
+                with open(IzpisnaDatoteka1, "a") as izpis:
+                    izpis.write("Datum:" + dan + "\n")
+                    izpis.write(",")
+                    while x < tempSensorAnzahl:
+                        izpis.write("Senzor" ";")
+                        x = x + 1
+                    izpis.write("\n")
+                    izpis.write("Cas,")
+                    x = 0
+                    while x < tempSensorAnzahl:
+                        izpis.write(tempSensorBezeichnung[x] + " ;")
+                        x = x + 1
+                    izpis.write("\n")
+            elif tsw1 <= tempStop:
+                programmStatus.value = 1
+                    
+            ds1820auslesen()
+        
+        while programmStatus.value == 4:
+            
+            with open(IzpisnaDatoteka1, "a") as izpis:
+               izpis.write(ura + " ;")
+               while x < tempSensorAnzahl:
+                   izpis.write(tempSensorWert[x] + " ;")
+                   x = x + 1
+               izpis.write("\n")
+               x = 0
+               
+            with open(IzpisnaDatoteka2, "a") as izpis:
+               izpis.write(ura + " ;")
+               while x < tempSensorAnzahl:
+                   izpis.write(tempSensorWert[x] + " ;")
+                   x = x + 1
+               izpis.write("\n")
+               x = 0
+
+            # posredovanje statusa napak za multiprocesno izmenjavo podatkov
+            temp1.value = float(tempSensorWert[0])
+            temp2.value = float(tempSensorWert[1])
+
+            if errorStat == 1:  #Prepis napake za prikatz na GUI
+                errorStatus.value = 1
+            elif errorStat == 0:
+                errorStatus.value = 0
+            
+            time.sleep(.5) #zakasnitev med branjem vrednosti temperature
+            
+            tsw0 = float(tempSensorWert[0])
+            tsw1 = float(tempSensorWert[1])
+            if tsw1 <= tempStop:
+                programmStatus.value = 2
+                
+            elif tsw0 <= tempStop:
+                programmStatus.value = 3
+                    
+            ds1820auslesen()
+            
+        
 
 
 def Func1(temp1, temp2, programmStatus, errorStatus):
