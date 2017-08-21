@@ -91,14 +91,15 @@ NaslovIzpisneDatoteke = "/media/pi/USB DISK/" #Naslov datoteke za izpis
 
 programmStat = 1 
 
-def Func2(temp1, temp2, programmStatus, errorStatus):
-    global tempSensorBezeichnung, tempSensorAnzahl, tempSensorWert, programmStat#, IzpisDAN
+def Func2(temp1, temp2, programmStatus, errorStatus, proc1, proc2):
+    global tempSensorBezeichnung, tempSensorAnzahl, tempSensorWert, programmStatm, uraStart1, uraStart2
     
     programmStatus.value = 1
     programmStat = 1
     tempStart = float(  30.0)
     tempStop = float(30.0)
     tempPasterizacije = 35.0
+    timeOFpaster = 5 # čas pasterizacije v minutah 
     
     flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY
 
@@ -132,17 +133,24 @@ def Func2(temp1, temp2, programmStatus, errorStatus):
         ds1820einlesen() #Anzahl und Bezeichnungen der vorhandenen Temperatursensoren einlesen
     
     x = 0
-
+    
+    
+    
     ds1820auslesen()
         
 #        tsw0 = tempSensorWert[0]
 #        tsw1 = tempSensorWert[1]
-        
+    
+    endOFpaster1 = datetime.datetime.now()
+    endOFpaster2 = datetime.datetime.now()
+    uraStart1 = datetime.datetime.now()
+    uraStart2 = datetime.datetime.now()   
+    
     while programmStatus.value != 0:
         x = 0
         programmStatus.value = 1
 #        tempSensorWert.lock()
-
+        
         tsw0 = float(tempSensorWert[0])
         tsw1 = float(tempSensorWert[1])
                    
@@ -150,11 +158,12 @@ def Func2(temp1, temp2, programmStatus, errorStatus):
             programmStatus.value = 2
             
             tren_ura = datetime.datetime.now() #prebere trenuten čas
+            uraStart1 = tren_ura
+#            endOFpaster1 = tren_ura + timeOFpaster
             ura = tren_ura.strftime("%H:%M:%S") #formatira trenuten čas
             IzpisDAN = tren_ura.strftime("Dan%d%m%Y_Ura%H%M%S") #formatira trenuten čas (čas kreirane datoteke)
     
             IzpisnaDatoteka1 = NaslovIzpisneDatoteke + "Kotel1_" + str(IzpisDAN) + ".csv" #formatira ime kreirane datoteke
-        
         
             with open(IzpisnaDatoteka1, "a") as izpis:
                 izpis.write("Datum:" + dan + "\n")
@@ -174,6 +183,8 @@ def Func2(temp1, temp2, programmStatus, errorStatus):
             programmStatus.value = 3
             
             tren_ura = datetime.datetime.now() #prebere trenuten čas
+            uraStart2 = tren_ura
+#            endOFpaster2 = tren_ura + timeOFpaster
             ura = tren_ura.strftime("%H:%M:%S") #formatira trenuten čas
             IzpisDAN = tren_ura.strftime("Dan%d%m%Y_Ura%H%M%S") #formatira trenuten čas (čas kreirane datoteke)
     
@@ -203,16 +214,25 @@ def Func2(temp1, temp2, programmStatus, errorStatus):
         time.sleep(.5) #zakasnitev med branjem vrednosti temperature
         
         while programmStatus.value == 2:
-            
+            tren_ura = datetime.datetime.now() #prebere trenuten čas
+            ura = tren_ura.strftime("%H:%M:%S") #formatira trenuten čas
             with open(IzpisnaDatoteka1, "a") as izpis:
                izpis.write(ura + " ;")
                while x < tempSensorAnzahl:
                    izpis.write(tempSensorWert[x] + " ;")
                    x = x + 1
                izpis.write("\n")
-               x = 0           
-
+               x = 0
+               
+            endOFpaster1 = tren_ura - uraStart1
+            dmin1 = endOFpaster1.total_seconds()/60
+            processProc1 = dmin1 *  100 / timeOFpaster
+            processProc11 = int(round(processProc1))
+            print (processProc11)
+#            minOFpaster
             # posredovanje statusa napak za multiprocesno izmenjavo podatkov
+            
+            proc1.value = processProc11
             temp1.value = float(tempSensorWert[0])
             temp2.value = float(tempSensorWert[1])
 
@@ -229,6 +249,7 @@ def Func2(temp1, temp2, programmStatus, errorStatus):
                 programmStatus.value = 4
             
                 tren_ura = datetime.datetime.now() #prebere trenuten čas
+                uraStart2 = tren_ura
                 ura = tren_ura.strftime("%H:%M:%S") #formatira trenuten čas
                 IzpisDAN = tren_ura.strftime("Dan%d%m%Y_Ura%H%M%S") #formatira trenuten čas (čas kreirane datoteke)
     
@@ -248,22 +269,31 @@ def Func2(temp1, temp2, programmStatus, errorStatus):
                         izpis.write(tempSensorBezeichnung[x] + " ;")
                         x = x + 1
                     izpis.write("\n")
-            elif tsw0 <= tempStop:
+            elif tsw0 <= tempStop and processProc11 > 99:
                 programmStatus.value = 1
+                print("koncano1")
                     
             ds1820auslesen()
             
         while programmStatus.value == 3:
-            
+            tren_ura = datetime.datetime.now() #prebere trenuten čas
+            ura = tren_ura.strftime("%H:%M:%S") #formatira trenuten čas
             with open(IzpisnaDatoteka2, "a") as izpis:
                izpis.write(ura + " ;")
                while x < tempSensorAnzahl:
                    izpis.write(tempSensorWert[x] + " ;")
                    x = x + 1
                izpis.write("\n")
-               x = 0           
+               x = 0
+                          
+            endOFpaster2 = tren_ura - uraStart2
+            dmin2 = endOFpaster2.total_seconds()/60
+            processProc2 = dmin2 *  100 / timeOFpaster
+            processProc21 = int(round(processProc2))
+            print (processProc21)
 
             # posredovanje statusa napak za multiprocesno izmenjavo podatkov
+            proc2.value = processProc21
             temp1.value = float(tempSensorWert[0])
             temp2.value = float(tempSensorWert[1])
 
@@ -280,6 +310,8 @@ def Func2(temp1, temp2, programmStatus, errorStatus):
                 programmStatus.value = 4
             
                 tren_ura = datetime.datetime.now() #prebere trenuten čas
+                uraStart1 = tren_ura
+#                endOFpaster1 = tren_ura + timeOFpaster
                 ura = tren_ura.strftime("%H:%M:%S") #formatira trenuten čas
                 IzpisDAN = tren_ura.strftime("Dan%d%m%Y_Ura%H%M%S") #formatira trenuten čas (čas kreirane datoteke)
     
@@ -299,13 +331,14 @@ def Func2(temp1, temp2, programmStatus, errorStatus):
                         izpis.write(tempSensorBezeichnung[x] + " ;")
                         x = x + 1
                     izpis.write("\n")
-            elif tsw1 <= tempStop:
+            elif tsw1 <= tempStop and processProc21 > 99:
                 programmStatus.value = 1
                     
             ds1820auslesen()
         
         while programmStatus.value == 4:
-            
+            tren_ura = datetime.datetime.now() #prebere trenuten čas
+            ura = tren_ura.strftime("%H:%M:%S") #formatira trenuten čas
             with open(IzpisnaDatoteka1, "a") as izpis:
                izpis.write(ura + " ;")
                while x < tempSensorAnzahl:
@@ -313,7 +346,13 @@ def Func2(temp1, temp2, programmStatus, errorStatus):
                    x = x + 1
                izpis.write("\n")
                x = 0
-               
+            endOFpaster1 = tren_ura - uraStart1
+            dmin1 = endOFpaster1.total_seconds()/60
+            processProc1 = dmin1 *  100 / timeOFpaster
+            processProc11 = int(round(processProc1))
+            print (processProc11)
+            
+            
             with open(IzpisnaDatoteka2, "a") as izpis:
                izpis.write(ura + " ;")
                while x < tempSensorAnzahl:
@@ -321,8 +360,16 @@ def Func2(temp1, temp2, programmStatus, errorStatus):
                    x = x + 1
                izpis.write("\n")
                x = 0
+            
+            endOFpaster2 = tren_ura - uraStart2
+            dmin2 = endOFpaster2.total_seconds()/60
+            processProc2 = dmin2 *  100 / timeOFpaster
+            processProc21 = int(round(processProc2))
+            print (processProc21)
 
             # posredovanje statusa napak za multiprocesno izmenjavo podatkov
+            proc1.value = processProc11
+            proc2.value = processProc21
             temp1.value = float(tempSensorWert[0])
             temp2.value = float(tempSensorWert[1])
 
@@ -335,10 +382,10 @@ def Func2(temp1, temp2, programmStatus, errorStatus):
             
             tsw0 = float(tempSensorWert[0])
             tsw1 = float(tempSensorWert[1])
-            if tsw1 <= tempStop:
+            if tsw1 <= tempStop and processProc21 > 99:
                 programmStatus.value = 2
                 
-            elif tsw0 <= tempStop:
+            elif tsw0 <= tempStop and processProc11 > 99:
                 programmStatus.value = 3
                     
             ds1820auslesen()
@@ -346,7 +393,7 @@ def Func2(temp1, temp2, programmStatus, errorStatus):
         
 
 
-def Func1(temp1, temp2, programmStatus, errorStatus):
+def Func1(temp1, temp2, programmStatus, errorStatus, proc1, proc2):
     global tempSensorBezeichnung, tempSensorAnzahl, tempSensorWert
     
     temp11 = 0
@@ -377,6 +424,10 @@ def Func1(temp1, temp2, programmStatus, errorStatus):
             self.time_now = tk.StringVar()                                 
             self.var1 = IntVar()            
             self.var2 = IntVar()
+            self.proc1 = IntVar()            
+            self.proc2 = IntVar()
+            self.colour1 = StringVar()
+            self.colour2 = StringVar()
             self.errors = tk.StringVar()
 #            self.errors.set("Zagon prikazovalnika")
             
@@ -395,14 +446,20 @@ def Func1(temp1, temp2, programmStatus, errorStatus):
             self.kotel2Button  = Button(self, text = "Kotel 2", font = self.myFont, command = self.kotel2nast, height =1 , width = 5) 
             self.kotel2Button.grid(row=2, column=1)
     
-            self.temp1Label = Label(self, textvariable = self.var1, font = self.tempFont, height = 2, width = 5)
+            self.temp1Label = Label(self, textvariable = self.var1, fg = "black", font = self.tempFont, height = 2, width = 5)
             self.temp1Label.grid(row=3)
             
-            self.temp2Label = Label(self, textvariable = self.var2, font = self.tempFont, height = 2, width = 5)
+            self.temp2Label = Label(self, textvariable = self.var2, fg = "black", font = self.tempFont, height = 2, width = 5)
             self.temp2Label.grid(row=3, column=1)
             
+            self.proc1Label = Label(self, textvariable = self.proc1, font = self.myFont, height = 1, width = 5)
+            self.proc1Label.grid(row=4)
+            
+            self.proc2Label = Label(self, textvariable = self.proc2, font = self.myFont, height = 1, width = 10)
+            self.proc2Label.grid(row=4, column=1)
+            
             self.errorLabel = tk.Label(self, font = self.myFont)
-            self.errorLabel.grid(row=4, columnspan=2)
+            self.errorLabel.grid(row=5, columnspan=2)
             self.errorLabel["textvariable"] = self.errors
             
             
@@ -416,19 +473,37 @@ def Func1(temp1, temp2, programmStatus, errorStatus):
             
             self.var2.set(str(temp2.value) + u"\u2103")
             
+            self.proc1.set(str(proc1.value) + u"\u0025") #
+            
+            self.proc2.set(str(proc2.value) + u"\u0025")
+            
             if errorStatus.value == 0:
                 self.errors.set("Prikazovalnik deluje brez napak!")
-            elif errorStatus.value == 0:
+            elif errorStatus.value == 1:
                 self.errors.set("Vrednosti ni mogoce prebrati!")
+#            self.temp1Label.config(fg = "black")
+ #           self.temp2Label.config(fg = "black")
             
-            #    	if temp11 != temp1.value :
-#    	    rightButton["text"] = temp1.value
-#    	if temp1h < temp1.value :
-#            rightButton["fg"] = "red"
-#        elif temp1l > temp1.value :
-#            rightButton["fg"] = "blue"
-#        else :
-#            rightButton["fg"] = "green"
+            
+#            self.temp1Label.config(fg = "black")
+            if programmStatus.value == 2 or programmStatus.value == 4:     
+                if temp1h < temp1.value :
+                    self.temp1Label.config(fg = "red")
+                elif temp1l > temp1.value :
+                    self.temp1Label.config(fg = "blue")
+                else :
+                    self.temp1Label.config(fg = "green")
+                    
+            
+#            self.temp2Label.config(fg = "black")
+            if programmStatus.value == 3 or programmStatus.value == 4:     
+                if temp1h < temp2.value :
+                    self.temp2Label.config(fg = "red")
+                elif temp1l > temp2.value :
+                    self.temp2Label.config(fg = "blue")
+                else :
+                    self.temp2Label.config(fg = "green")
+                
             
             self.master.after(1000,self.UpdateVar)
             
@@ -447,30 +522,6 @@ def Func1(temp1, temp2, programmStatus, errorStatus):
             pass
     
 
-    
-#    def right(): #osveževanje temperature
-#    	print("LED button pressed")
-#    	if temp11 != temp1.value :
-#    	    rightButton["text"] = temp1.value
-#    	if temp1h < temp1.value :
-#            rightButton["fg"] = "red"
-#        elif temp1l > temp1.value :
-#            rightButton["fg"] = "blue"
-#        else :
-#            rightButton["fg"] = "green"
-#    	win.after(1000,right)
-    		
-#    def left():  #osveževanje temperature
-#    	if temp22 != temp2.value :
-#    	    leftButton["text"] = temp2.value
-#    	if temp2h < temp2.value :
-#            leftButton["fg"] = "red"
-#        elif temp2l > temp2.value :
-#            leftButton["fg"] = "blue"
-#        else :
-#            leftButton["fg"] = "green"
-#    	win.after(1000,left)
-    
     root = tk.Tk()
     a = Prikaz(master=root)
     root.mainloop()
@@ -485,12 +536,14 @@ if __name__=='__main__':
     y = Value('d', 0.0)
     z = Value('i', 0)
     z1 = Value('i', 0)
+    proc1 = Value('i', 0)
+    proc2 = Value('i', 0)
 #    time = Value( 'ctypes.c_char_p',"Datum: %d.%m.%Y Ura: %H:%M:%S")
     
-    p1 = Process(target = Func1, args = (x, y, z, z1))
+    p1 = Process(target = Func1, args = (x, y, z, z1, proc1, proc2))
     p1.start()
 #    p1.join()
      
-    p2 = Process(target = Func2, args = (x, y, z, z1))
+    p2 = Process(target = Func2, args = (x, y, z, z1, proc1, proc2))
     p2.start()
 #    p2.join()
